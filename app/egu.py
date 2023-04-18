@@ -122,6 +122,11 @@ def estimate_variogram(api: API) -> None:
         st.code(code)
 
 
+def parameterize_variogram(api: API) -> None:
+    
+    
+    pass
+
 @st.cache_data
 def cache_variogram(data: dict, bins: int, estimator: str, maxlag: Union[str, float]) -> Variogram:
     # build the coordinates
@@ -172,8 +177,32 @@ def data_selection(api: API) -> None:
         st.experimental_rerun()
 
 
-def subapp_selection() -> None:
-     pass
+def subapp_selection(api: API) -> None:
+    if 'current_app' not in st.session_state:
+        OPTS = [
+            dict(option='variogram', title='Uncertain empirical variograms', description="Use this example application to estimate an empirical variogram and estimate propagated observation uncertainties with different methods."),
+            dict(option='fitting', title='Multi-model parameterization', description="Use this example application to parameterize different model parameter sets in a multi-model approach with respect to observaiton uncertainties.")
+        ]
+        select = card_select(OPTS, md="6", xs="12", lg="6")
+
+        # redirect the application
+        if select is not None:
+            st.session_state.current_app = select
+            st.experimental_rerun()
+        else:
+            st.stop()
+
+    # a app has been selected, so first add the back button
+    do_exit = st.sidebar.button('Exit this app')
+    if do_exit:
+        del st.session_state.current_app
+        st.experimental_rerun()
+    
+    # and run the correct app
+    if st.session_state.current_app == 'variogram':
+        estimate_variogram(api=api)
+    elif st.session_state.current_app == 'fitting':
+        parameterize_variogram(api=api)
 
 
 def main(api: API) -> None:
@@ -182,7 +211,7 @@ def main(api: API) -> None:
     if 'data_id' not in st.session_state:
         data_selection(api=api)
     else:
-        estimate_variogram(api=api)
+        subapp_selection(api=api)
 
 
 def run(data_path=DATA_PATH, db_name='egu.db'):
