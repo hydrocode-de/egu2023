@@ -1,10 +1,11 @@
-from typing import List, Union
+from typing import List, Union, Tuple
 import os
 import hashlib
 
 import streamlit as st
 import numpy as np
 from skgstat import Variogram
+from skgstat import models
 from skgstat_uncertainty.api import API
 from skgstat_uncertainty.components.utils import ESTIMATORS, MODELS, CONF_METHODS
 from skgstat_uncertainty.processor import propagation
@@ -32,9 +33,6 @@ FILT_CONF_METHODS = {k: v for k, v in CONF_METHODS.items() if k != 'residual'}
 def estimate_variogram(api: API) -> None:
     # create an empty container for the plot
     plot_area = st.empty()
-
-    # get the dataset
-    data = api.get_upload_data(id=st.session_state.data_id)
 
     # render variogram estimation params in three columns
     left, center = st.columns(2)
@@ -64,27 +62,7 @@ def estimate_variogram(api: API) -> None:
         center.info('In this demo app, the repetitions are set to only 100.')
     
     # now the variogram is needed
-    variogram = cache_variogram(
-        {k:v for k,v in data.data.items() if k in ('x', 'y', 'v')}, 
-        bins=st.session_state.bins,
-        estimator=st.session_state.estimator,
-        maxlag=st.session_state.maxlag if st.session_state.maxlag != 'none' else None
-    )
-
-    # vario_md5 this is needed to correctly refresh the cache of uncertainty estimation as Variogram is not hashable
-    vario_md5 = hashlib.md5(f"{st.session_state.data_id};{st.session_state.bins};{st.session_state.estimator};{st.session_state.maxlag}".encode('utf-8')).hexdigest()
-
-
-    # run the estimation
-    interval = estimate_uncertainty(
-        vario_md5,
-        variogram,
-        method=st.session_state.conf_method,
-        conf_level=st.session_state.conf_level,
-        kfold=st.session_state.get('kfold'),
-        sigma_method=st.session_state.get('sigma_method'),
-        sigma=st.session_state.get('sigma')
-    )
+    variogram, interval = calculate_variogram_and_propagate(api=api)
 
     # now fill the plot
     fig = go.Figure([
@@ -123,9 +101,129 @@ def estimate_variogram(api: API) -> None:
 
 
 def parameterize_variogram(api: API) -> None:
+    # create an empty container for the plot
+    plot_area = st.empty()
+
+    # get the dataset
+    data = api.get_upload_data(id=st.session_state.data_id)
+
+    # check if the variogram settings have already be set
+    set_default_variogram()
+
+    # get variogram and interval
+    variogram, interval = calculate_variogram_and_propagate(api=api)
+
+    # resolve the x-axis to 100
+    x = np.linspace(0, variogram.bins[-1], 100)
+
+    # create 3 columns
+    left, center, right = st.columns(3)
+
+    # variogram model options
+    right.selectbox('Theoretical model', options=MODELS, index=0, format_func=lambda k: MODELS.get(k), key='model')
+    center.slider('Nugget & Sill', min_value=0.0, max_value=float(1.3 * np.nanmax(variogram.experimental)), value=[0.0, float(np.nanmax(variogram.experimental))], step=0.1, key='nugget_sill')
+    left.slider('Effective range', min_value=0.0, max_value=float(variogram.bins[-1]), value=float(np.nanmean(variogram.bins)), step=0.1, key='effective_range')
+
+    # get the model
+    model_func = getattr(models, st.session_state.model)
     
+    # calculate the model
+    current_y = model_func(x, st.session_state.effective_range, st.session_state.nugget_sill[1], st.session_state.nugget_sill[0])
+
+    # create the add button
+    do_add = right.button('Use these parameters')
+    if do_add:
+        # create the parameters list if it does not exist
+        if 'parameters' not in st.session_state:
+            st.session_state.parameters = []
+        
+        # add the parameters
+        st.session_state.parameters.append({
+            'model': st.session_state.model,
+            'effective_range': st.session_state.effective_range,
+            'nugget': st.session_state.nugget_sill[0],
+            'sill': st.session_state.nugget_sill[1],
+        })
+        st.success('Parameters saved.')
+
+    # finally plot
+    fig = go.Figure([
+        go.Scatter(x=variogram.bins, y=[b[0] for b in interval], mode='lines', line_color='grey', fill=None, name='lower bound'),
+        go.Scatter(x=variogram.bins, y=[b[1] for b in interval], mode='lines', line_color='grey', fill='tonexty', name='upper bound'),
+        go.Scatter(x=x, y=current_y, mode='lines', line_color='green', line_width=3, name=f'{st.session_state.model.capitalize()} variogram'),
+    ])
+
+    # add all parameters that are already set
+    if 'parameters' in st.session_state:
+        for p in st.session_state.parameters:
+            # get the model_func
+            model_func = getattr(models, p['model'])
+            fig.add_trace(go.Scatter(x=x, y=model_func(x, p['effective_range'], p['sill'], p['nugget']), mode='lines', line_color='green', line_width=0.8, showlegend=False))
+
+    fig.update_layout(
+        legend=dict(orientation='h')
+    )
+    plot_area.plotly_chart(fig, use_container_width=True)
+
+    # TODO: add the code sample
+
+
+def calculate_variogram_and_propagate(api: API) -> Tuple[Variogram, List[List[float]]]:
+    # load the data
+    data = api.get_upload_data(id=st.session_state.data_id)
+
+    # now the variogram is needed
+    variogram = cache_variogram(
+        {k:v for k,v in data.data.items() if k in ('x', 'y', 'v')}, 
+        bins=st.session_state.bins,
+        estimator=st.session_state.estimator,
+        maxlag=st.session_state.maxlag if st.session_state.maxlag != 'none' else None
+    )
+
+    # vario_md5 this is needed to correctly refresh the cache of uncertainty estimation as Variogram is not hashable
+    vario_md5 = hashlib.md5(f"{st.session_state.data_id};{st.session_state.bins};{st.session_state.estimator};{st.session_state.maxlag}".encode('utf-8')).hexdigest()
+
+
+    # run the estimation
+    interval = estimate_uncertainty(
+        vario_md5,
+        variogram,
+        method=st.session_state.conf_method,
+        conf_level=st.session_state.conf_level,
+        kfold=st.session_state.get('kfold'),
+        sigma_method=st.session_state.get('sigma_method'),
+        sigma=st.session_state.get('sigma')
+    )
+
+    return variogram, interval
+
+
+def set_default_variogram():
+    # set empirical variogram for the pancake
+    if st.session_state.data_id == PAN_ID:
+        if 'bins' not in st.session_state:
+            st.session_state.bins = 14
+        if 'estimator' not in st.session_state:
+            st.session_state.estimator = 'cressie'
+        if 'maxlag' not in st.session_state:
+            st.session_state.maxlag = 'median'
     
-    pass
+    # set empirical variogram for the meuse
+    if st.session_state.data_id == MEUSE_ID:
+        if 'bins' not in st.session_state:
+            st.session_state.bins = 12
+        if 'estimator' not in st.session_state:
+            st.session_state.estimator = 'matheron'
+        if 'maxlag' not in st.session_state:
+            st.session_state.maxlag = 'median'
+    
+    # set the same uncertainty estimation for both datasets
+    if 'conf_method' not in st.session_state:
+        st.session_state.conf_method = 'kfold'
+    if 'conf_level' not in st.session_state:
+        st.session_state.conf_level = 95
+    if 'kfold' not in st.session_state:
+        st.session_state.kfold = 5
 
 @st.cache_data
 def cache_variogram(data: dict, bins: int, estimator: str, maxlag: Union[str, float]) -> Variogram:
