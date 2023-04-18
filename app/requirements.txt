@@ -1,3 +1,4 @@
 streamlit
 skgstat_uncertainty
+plotly
 fire
