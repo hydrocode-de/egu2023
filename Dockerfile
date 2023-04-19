@@ -11,4 +11,4 @@ COPY ./app /app
 RUN pip install -r requirements.txt
 
 # Set the default command
-CMD ["streamlit", "run", "egu.py"]
+CMD ["streamlit", "run", "egu.py", "--server.headless", "true", "--server.fileWatcherType", "none", "--browser.gatherUsageStats", "false"]
