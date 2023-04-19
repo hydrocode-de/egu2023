@@ -12,7 +12,7 @@ from skgstat_uncertainty.processor import propagation
 from streamlit_card_select import card_select
 import plotly.graph_objects as go
 
-from static import SELECTION_INTRO, CODE_SAMPLE, STD_SAMPLE, KFOLD_SAMPLE, MC_SAMPLE, PLOT_SAMPLE
+from static import SELECTION_INTRO, SELECTION_OUTRO, CODE_SAMPLE, STD_SAMPLE, KFOLD_SAMPLE, MC_SAMPLE, PLOT_SAMPLE
 
 
 # data path
@@ -274,6 +274,9 @@ def data_selection(api: API) -> None:
     if select is not None:
         st.session_state.data_id = select
         st.experimental_rerun()
+    
+    # add the outro
+    st.markdown(SELECTION_OUTRO, unsafe_allow_html=True)
 
 
 def subapp_selection(api: API) -> None:

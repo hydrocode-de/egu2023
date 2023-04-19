@@ -5,7 +5,33 @@ For demonstration purposes, this sample application includes only two datasets.
 The first one is a random sample of the pancake dataset, which is distributed along with
 the package [SciKit-GStat](https://github.com/mmaelicke/scikit-gstat).
 The second one is a random sample of the meuse dataset, which is distributed along with 
-the R-package [gstat](https://cran.r-project.org/web/packages/gstat/index.html)
+the R-package [gstat](https://cran.r-project.org/web/packages/gstat/index.html).
+
+After selecting a dataset, you can choose between a number of exemplary applications.
+"""
+
+SELECTION_OUTRO = """
+<hr>
+
+If you reuse this application, please cite the following paper:
+
+> Mälicke, Mirko, Alberto Guadagnini, and Erwin Zehe. "SciKit-GStat Uncertainty: A software extension to 
+> cope with uncertain geostatistical estimates." Spatial Statistics (2023): 100737.
+
+```bibtex
+@article{MALICKE2023,
+    title = {SciKit-GStat Uncertainty: A software extension to cope with uncertain geostatistical estimates},
+    journal = {Spatial Statistics},
+    volume = {54},
+    pages = {100737},
+    year = {2023},
+    issn = {2211-6753},
+    doi = {https://doi.org/10.1016/j.spasta.2023.100737},
+    url = {https://www.sciencedirect.com/science/article/pii/S221167532300012X},
+    author = {Mirko Mälicke and Alberto Guadagnini and Erwin Zehe},
+    keywords = {Uncertainty, Geostatistics, Python, Variogram estimation},
+}
+```
 """
 
 CODE_SAMPLE = """
