@@ -12,7 +12,7 @@ from skgstat_uncertainty.processor import propagation
 from streamlit_card_select import card_select
 import plotly.graph_objects as go
 
-from static import SELECTION_INTRO, SELECTION_OUTRO, CODE_SAMPLE, STD_SAMPLE, KFOLD_SAMPLE, MC_SAMPLE, PLOT_SAMPLE
+from static import SELECTION_INTRO, SELECTION_OUTRO, CODE_SAMPLE, APP_SELECT_INTRO, STD_SAMPLE, KFOLD_SAMPLE, MC_SAMPLE, PLOT_SAMPLE
 
 
 # data path
@@ -280,13 +280,20 @@ def data_selection(api: API) -> None:
 
 
 def subapp_selection(api: API) -> None:
+    # render select only if no app has been selected
     if 'current_app' not in st.session_state:
+        # add the intro
+        st.markdown(APP_SELECT_INTRO)
+
         OPTS = [
             dict(option='variogram', title='Uncertain empirical variograms', description="Use this example application to estimate an empirical variogram and estimate propagated observation uncertainties with different methods."),
             dict(option='fitting', title='Multi-model parameterization', description="Use this example application to parameterize different model parameter sets in a multi-model approach with respect to observaiton uncertainties.")
         ]
         select = card_select(OPTS, md="6", xs="12", lg="6")
 
+        # add an info box
+        st.info('Note that the analysis and kriging applications are not yet available in this demo.')
+        
         # redirect the application
         if select is not None:
             st.session_state.current_app = select
