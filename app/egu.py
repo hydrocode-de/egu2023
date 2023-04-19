@@ -225,6 +225,7 @@ def set_default_variogram():
     if 'kfold' not in st.session_state:
         st.session_state.kfold = 5
 
+
 @st.cache_data
 def cache_variogram(data: dict, bins: int, estimator: str, maxlag: Union[str, float]) -> Variogram:
     # build the coordinates
@@ -288,7 +289,7 @@ def subapp_selection(api: API) -> None:
             st.session_state.current_app = select
             st.experimental_rerun()
         else:
-            st.stop()
+            return
 
     # a app has been selected, so first add the back button
     do_exit = st.sidebar.button('Exit this app')
